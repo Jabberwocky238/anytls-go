@@ -3,3 +3,4 @@
 /cmd/server/server
 *.exe
 *.zip
+/bin

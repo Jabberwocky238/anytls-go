@@ -2,6 +2,7 @@ package session
 
 import (
 	"anytls/proxy/padding"
+	"anytls/proxy/ratetracker"
 	"anytls/util"
 	"crypto/md5"
 	"encoding/binary"
@@ -53,6 +54,9 @@ type Session struct {
 
 	// server
 	onNewStream func(stream *Stream)
+
+	// ratetracker
+	tracker *ratetracker.RateTracker
 }
 
 func NewClientSession(conn net.Conn, _padding *atomic.TypedValue[*padding.PaddingFactory]) *Session {
@@ -61,6 +65,7 @@ func NewClientSession(conn net.Conn, _padding *atomic.TypedValue[*padding.Paddin
 		isClient:    true,
 		sendPadding: true,
 		padding:     _padding,
+		tracker:     ratetracker.NewRateTracker(conn.LocalAddr().String()),
 	}
 	s.die = make(chan struct{})
 	s.streams = make(map[uint32]*Stream)
@@ -72,6 +77,7 @@ func NewServerSession(conn net.Conn, onNewStream func(stream *Stream), _padding 
 		conn:        conn,
 		onNewStream: onNewStream,
 		padding:     _padding,
+		tracker:     ratetracker.NewRateTracker(conn.RemoteAddr().String()),
 	}
 	s.die = make(chan struct{})
 	s.streams = make(map[uint32]*Stream)
@@ -79,6 +85,14 @@ func NewServerSession(conn net.Conn, onNewStream func(stream *Stream), _padding 
 }
 
 func (s *Session) Run() {
+	// print ratetracker
+	go func() {
+		for {
+			time.Sleep(time.Second * 1)
+			logrus.Infof(s.tracker.Print())
+		}
+	}()
+
 	if !s.isClient {
 		s.recvLoop()
 		return
@@ -188,6 +202,9 @@ func (s *Session) recvLoop() error {
 		// read header first
 		if _, err := io.ReadFull(s.conn, hdr[:]); err == nil {
 			sid := hdr.StreamID()
+
+			s.tracker.RecvChan() <- uint64(hdr.Length())
+
 			switch hdr.Cmd() {
 			case cmdPSH:
 				if hdr.Length() > 0 {
@@ -457,12 +474,18 @@ func (s *Session) writeConn(b []byte) (n int, err error) {
 				return
 			} else {
 				n2, err := s.conn.Write(b)
+				if err == nil {
+					s.tracker.SendChan() <- uint64(n2)
+				}
 				return n + n2, err
 			}
 		} else {
 			s.sendPadding = false
 		}
 	}
-
-	return s.conn.Write(b)
+	n, err = s.conn.Write(b)
+	if err == nil {
+		s.tracker.SendChan() <- uint64(n)
+	}
+	return n, err
 }
