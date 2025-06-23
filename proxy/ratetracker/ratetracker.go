@@ -97,8 +97,19 @@ func (rt *RateTracker) Stop() {
 	rt.wg.Wait()
 }
 
+type Stats struct {
+	TotalSent          uint64 `json:"total_sent"`
+	TotalReceived      uint64 `json:"total_received"`
+	TotalSentBps       uint64 `json:"total_sent_bps"`
+	TotalReceivedBps   uint64 `json:"total_received_bps"`
+	CurrentSent        uint64 `json:"current_sent"`
+	CurrentReceived    uint64 `json:"current_received"`
+	CurrentSentBps     uint64 `json:"current_sent_bps"`
+	CurrentReceivedBps uint64 `json:"current_received_bps"`
+}
+
 // GetStats 获取所有统计信息
-func (rt *RateTracker) GetStats() map[string]uint64 {
+func (rt *RateTracker) GetStats() Stats {
 	windowTime := time.Since(rt.windowStart).Seconds()
 	if windowTime <= 0 {
 		windowTime = 0.1 // 避免除零
@@ -109,27 +120,27 @@ func (rt *RateTracker) GetStats() map[string]uint64 {
 		uptime = 1 // 避免除零
 	}
 
-	return map[string]uint64{
+	return Stats{
 		// 总量统计
-		"total_sent":         rt.totalSent.Load(),
-		"total_received":     rt.totalReceived.Load(),
-		"total_sent_bps":     uint64(float64(rt.totalSent.Load()*8) / uptime),
-		"total_received_bps": uint64(float64(rt.totalReceived.Load()*8) / uptime),
+		TotalSent:        rt.totalSent.Load(),
+		TotalReceived:    rt.totalReceived.Load(),
+		TotalSentBps:     uint64(float64(rt.totalSent.Load()*8) / uptime),
+		TotalReceivedBps: uint64(float64(rt.totalReceived.Load()*8) / uptime),
 
 		// 当前窗口统计
-		"current_sent":         rt.windowSent.Load(),
-		"current_received":     rt.windowReceived.Load(),
-		"current_sent_bps":     uint64(float64(rt.windowSent.Load()*8) / windowTime),
-		"current_received_bps": uint64(float64(rt.windowReceived.Load()*8) / windowTime),
+		CurrentSent:        rt.windowSent.Load(),
+		CurrentReceived:    rt.windowReceived.Load(),
+		CurrentSentBps:     uint64(float64(rt.windowSent.Load()*8) / windowTime),
+		CurrentReceivedBps: uint64(float64(rt.windowReceived.Load()*8) / windowTime),
 	}
 }
 
 func (rt *RateTracker) Print() string {
 	stats := rt.GetStats()
 	IP := fmt.Sprintf("[IP] %s, %s", rt.ip, rt.startTime.Format("2006-01-02 15:04:05"))
-	total := fmt.Sprintf("[Total] sent: %d bytes, received: %d bytes", stats["total_sent"], stats["total_received"])
-	totalBps := fmt.Sprintf("[Total Bps] sent: %d bps, received: %d bps", stats["total_sent_bps"], stats["total_received_bps"])
-	current := fmt.Sprintf("[Current 100ms] sent: %d bytes, received: %d bytes", stats["current_sent"], stats["current_received"])
-	currentBps := fmt.Sprintf("[Current Bps] sent: %d bps, received: %d bps", stats["current_sent_bps"], stats["current_received_bps"])
+	total := fmt.Sprintf("[Total] sent: %d bytes, received: %d bytes", stats.TotalSent, stats.TotalReceived)
+	totalBps := fmt.Sprintf("[Total Bps] sent: %d bps, received: %d bps", stats.TotalSentBps, stats.TotalReceivedBps)
+	current := fmt.Sprintf("[Current 100ms] sent: %d bytes, received: %d bytes", stats.CurrentSent, stats.CurrentReceived)
+	currentBps := fmt.Sprintf("[Current Bps] sent: %d bps, received: %d bps", stats.CurrentSentBps, stats.CurrentReceivedBps)
 	return fmt.Sprintf("\n%s\n%s\n%s\n%s\n%s\n", IP, total, totalBps, current, currentBps)
 }
