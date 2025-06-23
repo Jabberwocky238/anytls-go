@@ -1,18 +1,21 @@
-package ratetracker
+package rate
 
 import (
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
-	windowSize = 100 * time.Millisecond
+	windowSize        = 100 * time.Millisecond
+	heartbeatDeadline = 1 * time.Minute
 )
 
 // RateTracker 流量跟踪器
-type RateRecorder struct {
+type Recorder struct {
 	// 总量统计
 	totalSent     atomic.Uint64
 	totalReceived atomic.Uint64
@@ -27,14 +30,16 @@ type RateRecorder struct {
 	// channel驱动
 	sendChan chan uint64
 	recvChan chan uint64
-	stopChan chan struct{}
 	wg       sync.WaitGroup
+
+	// heartbeat
+	stopChan chan struct{}
 }
 
 // NewRateTracker 创建新的跟踪器
-func newRateRecorder(ip IP) *RateRecorder {
+func newRateRecorder(ip IP) *Recorder {
 	now := time.Now()
-	rt := &RateRecorder{
+	rt := &Recorder{
 		startTime:   now,
 		windowStart: now,
 		ip:          ip,
@@ -51,20 +56,21 @@ func newRateRecorder(ip IP) *RateRecorder {
 }
 
 // SendChan 获取发送channel
-func (rt *RateRecorder) SendChan() chan<- uint64 {
+func (rt *Recorder) SendChan() chan<- uint64 {
 	return rt.sendChan
 }
 
 // RecvChan 获取接收channel
-func (rt *RateRecorder) RecvChan() chan<- uint64 {
+func (rt *Recorder) RecvChan() chan<- uint64 {
 	return rt.recvChan
 }
 
 // recordLoop 自动记录循环
-func (rt *RateRecorder) recordLoop() {
+func (rt *Recorder) recordLoop() {
 	defer rt.wg.Done()
 
 	ticker := time.NewTicker(windowSize)
+	printer := time.NewTicker(time.Second * 1)
 	defer ticker.Stop()
 
 	for {
@@ -85,6 +91,9 @@ func (rt *RateRecorder) recordLoop() {
 			rt.windowReceived.Store(0)
 			rt.windowStart = time.Now()
 
+		case <-printer.C:
+			logrus.Infof(rt.print())
+
 		case <-rt.stopChan:
 			return
 		}
@@ -92,7 +101,7 @@ func (rt *RateRecorder) recordLoop() {
 }
 
 // Stop 停止跟踪器
-func (rt *RateRecorder) Stop() {
+func (rt *Recorder) Stop() {
 	close(rt.stopChan)
 	rt.wg.Wait()
 }
@@ -109,7 +118,7 @@ type Stats struct {
 }
 
 // GetStats 获取所有统计信息
-func (rt *RateRecorder) GetStats() Stats {
+func (rt *Recorder) getStats() Stats {
 	windowTime := time.Since(rt.windowStart).Seconds()
 	if windowTime <= 0 {
 		windowTime = 0.1 // 避免除零
@@ -135,12 +144,22 @@ func (rt *RateRecorder) GetStats() Stats {
 	}
 }
 
-func (rt *RateRecorder) Print() string {
-	stats := rt.GetStats()
+func (rt *Recorder) print() string {
+	stats := rt.getStats()
 	IP := fmt.Sprintf("[IP] %s, %s", rt.ip, rt.startTime.Format("2006-01-02 15:04:05"))
-	total := fmt.Sprintf("[Total] sent: %d bytes, received: %d bytes", stats.TotalSent, stats.TotalReceived)
-	totalBps := fmt.Sprintf("[Total Bps] sent: %d bps, received: %d bps", stats.TotalSentBps, stats.TotalReceivedBps)
-	current := fmt.Sprintf("[Current 100ms] sent: %d bytes, received: %d bytes", stats.CurrentSent, stats.CurrentReceived)
-	currentBps := fmt.Sprintf("[Current Bps] sent: %d bps, received: %d bps", stats.CurrentSentBps, stats.CurrentReceivedBps)
-	return fmt.Sprintf("\n%s\n%s\n%s\n%s\n%s\n", IP, total, totalBps, current, currentBps)
+	total := fmt.Sprintf("[Total] sent: %s, received: %s", formatBps(stats.TotalSent), formatBps(stats.TotalReceived))
+	// totalBps := fmt.Sprintf("[Total Bps] sent: %d bps, received: %d bps", stats.TotalSentBps, stats.TotalReceivedBps)
+	// current := fmt.Sprintf("[Current 100ms] sent: %d bytes, received: %d bytes", stats.CurrentSent, stats.CurrentReceived)
+	currentBps := fmt.Sprintf("[Current] sent: %s bps, received: %s bps", formatBps(stats.CurrentSentBps), formatBps(stats.CurrentReceivedBps))
+	return fmt.Sprintf("\n%s\n%s\n%s\n", IP, total, currentBps)
+}
+
+func formatBps(b uint64) string {
+	if b < 1024 {
+		return fmt.Sprintf("%dB", b/8)
+	}
+	if b < 1024*1024 {
+		return fmt.Sprintf("%dKB", b/8/1024)
+	}
+	return fmt.Sprintf("%dMB", b/8/1024/1024)
 }

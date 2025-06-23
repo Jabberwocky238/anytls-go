@@ -80,14 +80,6 @@ func NewServerSession(conn net.Conn, onNewStream func(stream *Stream), _padding 
 }
 
 func (s *Session) Run() {
-	// print ratetracker
-	go func() {
-		for {
-			time.Sleep(time.Second * 1)
-			logrus.Infof(rate.Rate.GetRecorder(s.conn.RemoteAddr()).Print())
-		}
-	}()
-
 	if !s.isClient {
 		s.recvLoop()
 		return
@@ -189,8 +181,12 @@ func (s *Session) recvLoop() error {
 
 	var receivedSettingsFromClient bool
 	var hdr rawHeader
+	// rate
+	recorder := rate.Record.GetRecorder(s.conn.RemoteAddr())
 
 	for {
+		// rate
+		rate.Limit.TryLimitRecv(recorder)
 		if s.IsClosed() {
 			return io.ErrClosedPipe
 		}
@@ -198,7 +194,8 @@ func (s *Session) recvLoop() error {
 		if _, err := io.ReadFull(s.conn, hdr[:]); err == nil {
 			sid := hdr.StreamID()
 
-			rate.Rate.GetRecorder(s.conn.RemoteAddr()).RecvChan() <- uint64(hdr.Length())
+			// rate
+			recorder.RecvChan() <- uint64(hdr.Length())
 
 			switch hdr.Cmd() {
 			case cmdPSH:
@@ -393,12 +390,18 @@ func (s *Session) writeFrame(frame frame) (int, error) {
 	binary.BigEndian.PutUint32(buffer.Extend(4), frame.sid)
 	binary.BigEndian.PutUint16(buffer.Extend(2), uint16(dataLen))
 	buffer.Write(frame.data)
-	_, err := s.writeConn(buffer.Bytes())
+
+	// rate
+	recorder := rate.Record.GetRecorder(s.conn.RemoteAddr())
+	rate.Limit.TryLimitSend(recorder)
+	n, err := s.writeConn(buffer.Bytes())
+	if err == nil {
+		recorder.SendChan() <- uint64(n)
+	}
 	buffer.Release()
 	if err != nil {
 		return 0, err
 	}
-
 	return dataLen, nil
 }
 
@@ -469,18 +472,12 @@ func (s *Session) writeConn(b []byte) (n int, err error) {
 				return
 			} else {
 				n2, err := s.conn.Write(b)
-				if err == nil {
-					rate.Rate.GetRecorder(s.conn.RemoteAddr()).SendChan() <- uint64(n2)
-				}
 				return n + n2, err
 			}
 		} else {
 			s.sendPadding = false
 		}
 	}
-	n, err = s.conn.Write(b)
-	if err == nil {
-		rate.Rate.GetRecorder(s.conn.RemoteAddr()).SendChan() <- uint64(n)
-	}
-	return n, err
+
+	return s.conn.Write(b)
 }
