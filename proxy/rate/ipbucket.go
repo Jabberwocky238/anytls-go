@@ -20,16 +20,14 @@ func ip(addr net.Addr) IP {
 
 // IPBucket a bucket of *RateTracker, indexed by IP
 type IPBucket struct {
-	recorders  map[IP]*Recorder
-	heartbeats map[IP]time.Time
-	mu         sync.RWMutex
+	recorders map[IP]*Recorder
+	mu        sync.RWMutex
 }
 
 // NewIPBucket creates a new IPBucket
 func newIPBucket() *IPBucket {
 	return &IPBucket{
-		recorders:  make(map[IP]*Recorder),
-		heartbeats: make(map[IP]time.Time),
+		recorders: make(map[IP]*Recorder),
 	}
 }
 
@@ -41,7 +39,7 @@ func (b *IPBucket) GetRecorder(addr net.Addr) *Recorder {
 	b.mu.RUnlock()
 
 	if ok {
-		b.heartbeats[ip] = time.Now()
+		tracker.lastHeartbeat = time.Now()
 		return tracker
 	}
 
@@ -54,8 +52,8 @@ func (b *IPBucket) GetRecorder(addr net.Addr) *Recorder {
 	}
 
 	tracker = newRateRecorder(ip)
+	tracker.lastHeartbeat = time.Now()
 	b.recorders[ip] = tracker
-	b.heartbeats[ip] = time.Now()
 	return tracker
 }
 
@@ -64,9 +62,8 @@ func (b *IPBucket) Clean() {
 	defer b.mu.Unlock()
 	total := len(b.recorders)
 	remain := 0
-	for ip, t := range b.heartbeats {
-		if time.Since(t) > heartbeatDeadline {
-			delete(b.heartbeats, ip)
+	for ip, t := range b.recorders {
+		if time.Since(t.lastHeartbeat) > heartbeatDeadline {
 			delete(b.recorders, ip)
 		} else {
 			remain++

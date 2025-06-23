@@ -4,7 +4,7 @@ import "time"
 
 // Limiter 是一个简单的令牌桶限速器
 const (
-	LimitBps = 5_000_000 // 5Mbps
+	LimitBps = 5_000_000 // 1MBps
 )
 
 type Limiter struct {
@@ -24,13 +24,13 @@ func (l *Limiter) Disallow(currentBps uint64) bool {
 }
 
 func (l *Limiter) TryLimitSend(recorder *Recorder) {
-	if l.Disallow(recorder.getStats().CurrentSentBps) {
+	if l.Disallow(recorder.getStats().CurrentSent) {
 		time.Sleep(time.Millisecond * 100)
 	}
 }
 
 func (l *Limiter) TryLimitRecv(recorder *Recorder) {
-	if l.Disallow(recorder.getStats().CurrentReceivedBps) {
+	if l.Disallow(recorder.getStats().CurrentReceived) {
 		time.Sleep(time.Millisecond * 100)
 	}
 }
