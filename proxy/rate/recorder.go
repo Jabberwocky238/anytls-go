@@ -12,12 +12,12 @@ const (
 )
 
 // RateTracker 流量跟踪器
-type RateTracker struct {
+type RateRecorder struct {
 	// 总量统计
 	totalSent     atomic.Uint64
 	totalReceived atomic.Uint64
 	startTime     time.Time
-	ip            string
+	ip            IP
 
 	// 100ms窗口统计
 	windowSent     atomic.Uint64
@@ -32,9 +32,9 @@ type RateTracker struct {
 }
 
 // NewRateTracker 创建新的跟踪器
-func NewRateTracker(ip string) *RateTracker {
+func newRateRecorder(ip IP) *RateRecorder {
 	now := time.Now()
-	rt := &RateTracker{
+	rt := &RateRecorder{
 		startTime:   now,
 		windowStart: now,
 		ip:          ip,
@@ -51,17 +51,17 @@ func NewRateTracker(ip string) *RateTracker {
 }
 
 // SendChan 获取发送channel
-func (rt *RateTracker) SendChan() chan<- uint64 {
+func (rt *RateRecorder) SendChan() chan<- uint64 {
 	return rt.sendChan
 }
 
 // RecvChan 获取接收channel
-func (rt *RateTracker) RecvChan() chan<- uint64 {
+func (rt *RateRecorder) RecvChan() chan<- uint64 {
 	return rt.recvChan
 }
 
 // recordLoop 自动记录循环
-func (rt *RateTracker) recordLoop() {
+func (rt *RateRecorder) recordLoop() {
 	defer rt.wg.Done()
 
 	ticker := time.NewTicker(windowSize)
@@ -92,7 +92,7 @@ func (rt *RateTracker) recordLoop() {
 }
 
 // Stop 停止跟踪器
-func (rt *RateTracker) Stop() {
+func (rt *RateRecorder) Stop() {
 	close(rt.stopChan)
 	rt.wg.Wait()
 }
@@ -109,7 +109,7 @@ type Stats struct {
 }
 
 // GetStats 获取所有统计信息
-func (rt *RateTracker) GetStats() Stats {
+func (rt *RateRecorder) GetStats() Stats {
 	windowTime := time.Since(rt.windowStart).Seconds()
 	if windowTime <= 0 {
 		windowTime = 0.1 // 避免除零
@@ -135,7 +135,7 @@ func (rt *RateTracker) GetStats() Stats {
 	}
 }
 
-func (rt *RateTracker) Print() string {
+func (rt *RateRecorder) Print() string {
 	stats := rt.GetStats()
 	IP := fmt.Sprintf("[IP] %s, %s", rt.ip, rt.startTime.Format("2006-01-02 15:04:05"))
 	total := fmt.Sprintf("[Total] sent: %d bytes, received: %d bytes", stats.TotalSent, stats.TotalReceived)

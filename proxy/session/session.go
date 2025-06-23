@@ -2,7 +2,7 @@ package session
 
 import (
 	"anytls/proxy/padding"
-	"anytls/proxy/ratetracker"
+	rate "anytls/proxy/rate"
 	"anytls/util"
 	"crypto/md5"
 	"encoding/binary"
@@ -54,9 +54,6 @@ type Session struct {
 
 	// server
 	onNewStream func(stream *Stream)
-
-	// ratetracker
-	tracker *ratetracker.RateTracker
 }
 
 func NewClientSession(conn net.Conn, _padding *atomic.TypedValue[*padding.PaddingFactory]) *Session {
@@ -65,7 +62,6 @@ func NewClientSession(conn net.Conn, _padding *atomic.TypedValue[*padding.Paddin
 		isClient:    true,
 		sendPadding: true,
 		padding:     _padding,
-		tracker:     ratetracker.NewRateTracker(conn.LocalAddr().String()),
 	}
 	s.die = make(chan struct{})
 	s.streams = make(map[uint32]*Stream)
@@ -77,7 +73,6 @@ func NewServerSession(conn net.Conn, onNewStream func(stream *Stream), _padding 
 		conn:        conn,
 		onNewStream: onNewStream,
 		padding:     _padding,
-		tracker:     ratetracker.NewRateTracker(conn.RemoteAddr().String()),
 	}
 	s.die = make(chan struct{})
 	s.streams = make(map[uint32]*Stream)
@@ -89,7 +84,7 @@ func (s *Session) Run() {
 	go func() {
 		for {
 			time.Sleep(time.Second * 1)
-			logrus.Infof(s.tracker.Print())
+			logrus.Infof(rate.Rate.GetRecorder(s.conn.RemoteAddr()).Print())
 		}
 	}()
 
@@ -203,7 +198,7 @@ func (s *Session) recvLoop() error {
 		if _, err := io.ReadFull(s.conn, hdr[:]); err == nil {
 			sid := hdr.StreamID()
 
-			s.tracker.RecvChan() <- uint64(hdr.Length())
+			rate.Rate.GetRecorder(s.conn.RemoteAddr()).RecvChan() <- uint64(hdr.Length())
 
 			switch hdr.Cmd() {
 			case cmdPSH:
@@ -475,7 +470,7 @@ func (s *Session) writeConn(b []byte) (n int, err error) {
 			} else {
 				n2, err := s.conn.Write(b)
 				if err == nil {
-					s.tracker.SendChan() <- uint64(n2)
+					rate.Rate.GetRecorder(s.conn.RemoteAddr()).SendChan() <- uint64(n2)
 				}
 				return n + n2, err
 			}
@@ -485,7 +480,7 @@ func (s *Session) writeConn(b []byte) (n int, err error) {
 	}
 	n, err = s.conn.Write(b)
 	if err == nil {
-		s.tracker.SendChan() <- uint64(n)
+		rate.Rate.GetRecorder(s.conn.RemoteAddr()).SendChan() <- uint64(n)
 	}
 	return n, err
 }
