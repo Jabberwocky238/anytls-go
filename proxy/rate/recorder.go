@@ -5,8 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/sirupsen/logrus"
+	// "github.com/sirupsen/logrus"
 )
 
 const (
@@ -78,7 +77,7 @@ func (rt *Recorder) recordLoop() {
 	defer rt.wg.Done()
 
 	ticker := time.NewTicker(windowPeriodSize)
-	printer := time.NewTicker(time.Second * 1)
+	// printer := time.NewTicker(time.Second * 1)
 	defer ticker.Stop()
 
 	for {
@@ -103,8 +102,8 @@ func (rt *Recorder) recordLoop() {
 			rt.windowSent.Store(0)
 			rt.windowReceived.Store(0)
 
-		case <-printer.C:
-			logrus.Infof(rt.print())
+		// case <-printer.C:
+		// 	logrus.Infof(rt.print())
 
 		case <-rt.stopChan:
 			return

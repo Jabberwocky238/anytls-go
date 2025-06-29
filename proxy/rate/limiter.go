@@ -7,7 +7,7 @@ const (
 	B        = 1
 	KB       = 1024 * B
 	MB       = 1024 * KB
-	LimitBps = 1 * MB // 1MBps
+	LimitBps = 100 * MB // 10MBps
 )
 
 type Limiter struct {

@@ -64,6 +64,8 @@ func (b *IPBucket) Clean() {
 	remain := 0
 	for ip, t := range b.recorders {
 		if time.Since(t.lastHeartbeat) > heartbeatDeadline {
+			logrus.Infof("[Rate] stop recorder %s", ip)
+			t.Stop()
 			delete(b.recorders, ip)
 		} else {
 			remain++

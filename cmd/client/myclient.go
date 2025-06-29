@@ -11,6 +11,7 @@ import (
 
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sirupsen/logrus"
 )
 
 type myClient struct {
@@ -27,10 +28,12 @@ func NewMyClient(ctx context.Context, dialOut util.DialOutFunc) *myClient {
 }
 
 func (c *myClient) CreateProxy(ctx context.Context, destination M.Socksaddr) (net.Conn, error) {
+	logrus.Infof("[Client] CreateProxy destination type: %T, value: %s", destination, destination.String())
 	conn, err := c.sessionClient.CreateStream(ctx)
 	if err != nil {
 		return nil, err
 	}
+	logrus.Infof("[Client] WriteAddrPort: %s", destination.String())
 	err = M.SocksaddrSerializer.WriteAddrPort(conn, destination)
 	if err != nil {
 		conn.Close()

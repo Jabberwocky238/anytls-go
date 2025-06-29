@@ -18,15 +18,34 @@
 
 ```
 ./anytls-server -l 0.0.0.0:8443 -p 密码
-./anytls-server -l 0.0.0.0:43555 -p 1111qqqqjjjj
+./anytls-server-linux -l 0.0.0.0:3306 -p 1111qqqqjjjj
+./anytls-server-linux -l 0.0.0.0:61555 -p 1111qqqqjjjjzq238_4
+./anytls-server-linux-log -l 0.0.0.0:23877 -p 1111qqqqjjjjzq238_4
+./anytls-redirect-linux -l 0.0.0.0:3306 -s 43.133.221.206:61555 -p 1111qqqqjjjjzq238_4
+./anytls-redirect-linux -l 0.0.0.0:3306 -s 74.48.108.252:23877 -p 1111qqqqjjjjzq238_4
+
+./anytls-redirect-linux -l 0.0.0.0:23891 -s 74.48.108.252:23811 -p 1111qqqqjjjjzq238_1
+./anytls-redirect-linux -l 0.0.0.0:23892 -s 74.48.108.252:23822 -p 1111qqqqjjjjzq238_2
+./anytls-redirect-linux -l 0.0.0.0:23893 -s 74.48.108.252:23833 -p 1111qqqqjjjjzq238_3
+./anytls-redirect-linux -l 0.0.0.0:23894 -s 74.48.108.252:23844 -p 1111qqqqjjjjzq238_4
 ```
+
+US美国洛杉矶-专线-1,121.5.40.207,23891,1111qqqqjjjjzq238_1,1
+US美国洛杉矶-专线-2,121.5.40.207,23892,1111qqqqjjjjzq238_2,1
+US美国洛杉矶-专线-3,121.5.40.207,23893,1111qqqqjjjjzq238_3,1
+US美国洛杉矶-专线-4,121.5.40.207,23894,1111qqqqjjjjzq238_4,1
 
 `0.0.0.0:8443` 为服务器监听的地址和端口。
 
 ### 客户端
-
+tcpdump -i any -s 0 -w /tmp/redirect.pcap port 3306
 ```
-./anytls-client -l 127.0.0.1:1080 -s 服务器ip:端口 -p 密码
+./anytls-client-linux -l 0.0.0.0:3306 -s 43.133.221.206:61555 -p 1111qqqqjjjjzq238_4
+curl --socks5 127.0.0.1:1081 http://www.gstatic.com/generate_204
+curl --socks5 121.5.40.207:3306 http://www.gstatic.com/generate_204
+anytls-client-windows.exe -l 127.0.0.1:1081 -s 121.5.40.207:3306 -p 1111qqqqjjjjzq238_4
+anytls-client-windows.exe -l 127.0.0.1:1081 -s 43.133.221.206:61555 -p 1111qqqqjjjjzq238_4
+anytls-client-windows.exe -l 127.0.0.1:1081 -s 74.48.108.252:23877 -p 1111qqqqjjjjzq238_4
 ```
 
 `127.0.0.1:1080` 为本机 Socks5 代理监听地址，理论上支持 TCP 和 UDP(通过 udp over tcp 传输)。

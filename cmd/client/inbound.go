@@ -30,6 +30,7 @@ func handleTcpConnection(ctx context.Context, c net.Conn, s *myClient) {
 // sing socks inbound
 
 func (c *myClient) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
+	logrus.Infof("[Client] inbound metadata.Destination type: %T, value: %s", metadata.Destination, metadata.Destination.String())
 	proxyC, err := c.CreateProxy(ctx, metadata.Destination)
 	if err != nil {
 		logrus.Errorln("CreateProxy:", err)
