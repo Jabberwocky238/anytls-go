@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -44,23 +45,27 @@ func main() {
 		}
 	}
 
+	// logging
 	logLevel, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL"))
 	if err != nil {
 		logLevel = logrus.DebugLevel
 	}
 	logrus.SetLevel(logLevel)
 
+	// password
 	var sum = sha256.Sum256([]byte(*password))
 	passwordSha256 = sum[:]
 
 	logrus.Infoln("[Server]", util.ProgramVersionName)
 	logrus.Infoln("[Server] Listening TCP", *listen)
 
+	// listen
 	listener, err := net.Listen("tcp", *listen)
 	if err != nil {
 		logrus.Fatalln("listen server tcp:", err)
 	}
 
+	// tls
 	tlsCert, _ := util.GenerateKeyPair(time.Now, "")
 	tlsConfig := &tls.Config{
 		GetCertificate: func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -68,14 +73,21 @@ func main() {
 		},
 	}
 
-	ctx := context.Background()
+	// feedback
+	_, port, err := net.SplitHostPort(*listen)
+	if err != nil {
+		logrus.Fatalln("split host port:", err)
+	}
+	portInt, err := strconv.Atoi(port)
+	if err != nil {
+		logrus.Fatalln("convert port:", err)
+	}
+
+	// server
+	ctx, cancel := context.WithCancel(context.Background())
 	server := NewMyServer(tlsConfig)
-	timer := feedback.NewTimer(&feedback.Config{
-		Password: *password,
-		Host:     "127.0.0.1",
-		Port:     5555,
-		Interval: 15 * time.Second,
-	})
+
+	timer := feedback.NewTimer(*password, portInt, ctx, cancel)
 	timer.Start()
 
 	for {
@@ -84,5 +96,12 @@ func main() {
 			logrus.Fatalln("accept:", err)
 		}
 		go handleTcpConnection(ctx, c, server)
+
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		default:
+		}
 	}
 }

@@ -4,3 +4,6 @@
 *.exe
 *.zip
 /bin
+
+.env
+.env.dev
