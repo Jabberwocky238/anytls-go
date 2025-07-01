@@ -4,8 +4,6 @@ server:
 client:
 	go build -o bin/anytls-client ./cmd/client
 
-dev:
-	go run ./cmd/server/main.go -password=123456 -listen=0.0.0.0:443 -tls=true -feedback=true
 
 linux:
 	GOOS=linux GOARCH=amd64 go build -o bin/anytls-server-linux ./cmd/server

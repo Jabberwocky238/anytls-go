@@ -18,12 +18,14 @@ type Timer struct {
 	password   string
 	port       int
 	host       string
+	country    string
 	httpClient *http.Client
 	ctx        context.Context
 	cancel     context.CancelFunc
 }
 
 var ServerURL string
+var VIP bool
 
 var (
 	RegisterRetryInterval = 15 * time.Second // 注册重试初始间隔
@@ -44,6 +46,7 @@ func init() {
 		}
 	}
 	ServerURL = os.Getenv("API_BASE_URL") + "/proxy"
+	VIP = os.Getenv("VIP") == "true"
 }
 
 // NewTimer 创建新的定时器
@@ -52,12 +55,17 @@ func NewTimer(password string, port int, ctx context.Context, cancel context.Can
 	if err != nil {
 		logrus.Fatalln("get public ip:", err)
 	}
+	country, err := GetIPCountry(ip)
+	if err != nil {
+		logrus.Fatalln("get ip country:", err)
+	}
 	logrus.Debugf("public endpoint: %s:%d", ip, port)
 
 	return &Timer{
 		password: password,
 		port:     port,
 		host:     ip,
+		country:  country,
 		httpClient: &http.Client{
 			Timeout: HTTPTimeout,
 		},
@@ -103,8 +111,8 @@ func (t *Timer) sendInitialRequest() error {
 		Host:     t.host,
 		Port:     t.port,
 		Password: t.password,
-		VIP:      false,
-		Country:  "CN",
+		VIP:      VIP,
+		Country:  t.country,
 	}
 
 	jsonData, err := json.Marshal(req)

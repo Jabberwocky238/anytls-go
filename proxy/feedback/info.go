@@ -35,3 +35,22 @@ func GetPublicIP() (string, error) {
 	}
 	return "", errors.New("invalid ip")
 }
+
+// GetIPCountry 获取指定IP的国家信息
+func GetIPCountry(ip string) (string, error) {
+	resp, err := http.Get("http://ip-api.com/line/" + ip + "?fields=country")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	country := strings.TrimSpace(string(body))
+	if country == "" || country == "fail" {
+		return "", errors.New("无法获取国家信息")
+	}
+	return country, nil
+}
