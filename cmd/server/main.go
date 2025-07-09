@@ -1,7 +1,7 @@
 package main
 
 import (
-	"anytls/proxy/feedback"
+	F "anytls/addon/feedback"
 	"anytls/proxy/padding"
 	"anytls/util"
 	"context"
@@ -87,7 +87,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	server := NewMyServer(tlsConfig)
 
-	timer := feedback.NewTimer(*password, portInt, ctx, cancel)
+	timer := F.NewTimer(*password, portInt, ctx, cancel)
 	timer.Start()
 
 	for {

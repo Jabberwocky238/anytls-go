@@ -1,7 +1,7 @@
 package main
 
 import (
-	"anytls/proxy/feedback"
+	F "anytls/addon/feedback"
 	"anytls/util"
 	"context"
 	"crypto/sha256"
@@ -70,7 +70,7 @@ func main() {
 	// 使用 myRedirector 封装
 	redirector := NewMyRedirector(ctx, *downstream, tlsConfigDownstream)
 
-	timer := feedback.NewTimer(*password, portInt, ctx, cancel)
+	timer := F.NewTimer(*password, portInt, ctx, cancel)
 	timer.Start()
 
 	for {

@@ -1,8 +1,8 @@
 package session
 
 import (
+	R "anytls/addon/rate"
 	"anytls/proxy/padding"
-	rate "anytls/proxy/rate"
 	"anytls/util"
 	"crypto/md5"
 	"encoding/binary"
@@ -182,11 +182,11 @@ func (s *Session) recvLoop() error {
 	var receivedSettingsFromClient bool
 	var hdr rawHeader
 	// rate
-	recorder := rate.Record.GetRecorder(s.conn.RemoteAddr())
+	recorder := R.Record.GetRecorder(s.conn.RemoteAddr())
 
 	for {
 		// rate
-		rate.Limit.TryLimitRecv(recorder)
+		R.Limit.TryLimitRecv(recorder)
 		if s.IsClosed() {
 			return io.ErrClosedPipe
 		}
@@ -392,8 +392,8 @@ func (s *Session) writeFrame(frame frame) (int, error) {
 	buffer.Write(frame.data)
 
 	// rate
-	recorder := rate.Record.GetRecorder(s.conn.RemoteAddr())
-	rate.Limit.TryLimitSend(recorder)
+	recorder := R.Record.GetRecorder(s.conn.RemoteAddr())
+	R.Limit.TryLimitSend(recorder)
 	n, err := s.writeConn(buffer.Bytes())
 	if err == nil {
 		recorder.SendChan() <- uint64(n)
