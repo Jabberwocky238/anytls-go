@@ -130,7 +130,7 @@ func (t *Timer) sendInitialRequest() error {
 
 // sendHeartbeat 发送心跳请求
 func (t *Timer) sendHeartbeat() error {
-	records := R.Tracker.Record()
+	records := R.Tracker.Records()
 	feedbacks := make([]ProxyFeedback, len(records))
 	for i, record := range records {
 		feedbacks[i] = ProxyFeedback{

@@ -66,7 +66,7 @@ func (b *IPTracker) Clean() {
 	logrus.Infof("[Rate] clean %d recorders, remain %d", total-remain, remain)
 }
 
-func (b *IPTracker) Record() []Record {
+func (b *IPTracker) Records() []Record {
 	var feedbacks []Record
 	b.mu.RLock()
 	defer b.mu.RUnlock()
