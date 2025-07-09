@@ -1,6 +1,9 @@
-package rate
+package limit
 
-import "time"
+import (
+	R "anytls/addon/rate"
+	"time"
+)
 
 // Limiter 是一个简单的令牌桶限速器
 const (
@@ -26,14 +29,14 @@ func (l *Limiter) Disallow(currentBps float64) bool {
 	return currentBps > l.limitBps
 }
 
-func (l *Limiter) TryLimitSend(recorder *Recorder) {
-	if l.Disallow(recorder.getStats().CurrentSentBps) {
+func (l *Limiter) TryLimitSend(recorder *R.Recorder) {
+	if l.Disallow(recorder.GetStats().CurrentSentBps) {
 		time.Sleep(time.Millisecond * 100)
 	}
 }
 
-func (l *Limiter) TryLimitRecv(recorder *Recorder) {
-	if l.Disallow(recorder.getStats().CurrentReceivedBps) {
+func (l *Limiter) TryLimitRecv(recorder *R.Recorder) {
+	if l.Disallow(recorder.GetStats().CurrentReceivedBps) {
 		time.Sleep(time.Millisecond * 100)
 	}
 }

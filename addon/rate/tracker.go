@@ -8,31 +8,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type IP = string
-
-func ip(addr net.Addr) IP {
-	ip, _, err := net.SplitHostPort(addr.String())
-	if err != nil {
-		return ""
-	}
-	return ip
-}
-
-// IPBucket a bucket of *RateTracker, indexed by IP
-type IPBucket struct {
+// IPTracker a bucket of *RateTracker, indexed by IP
+type IPTracker struct {
 	recorders map[IP]*Recorder
 	mu        sync.RWMutex
 }
 
-// NewIPBucket creates a new IPBucket
-func newIPBucket() *IPBucket {
-	return &IPBucket{
+var Tracker = newIPTracker()
+
+// NewIPTracker creates a new IPTracker
+func newIPTracker() *IPTracker {
+	return &IPTracker{
 		recorders: make(map[IP]*Recorder),
 	}
 }
 
-// GetRecorder gets or creates a tracker by IP
-func (b *IPBucket) GetRecorder(addr net.Addr) *Recorder {
+// WithIP gets or creates a tracker by IP
+func (b *IPTracker) WithIP(addr net.Addr) *Recorder {
 	b.mu.RLock()
 	ip := ip(addr)
 	tracker, ok := b.recorders[ip]
@@ -57,7 +49,7 @@ func (b *IPBucket) GetRecorder(addr net.Addr) *Recorder {
 	return tracker
 }
 
-func (b *IPBucket) Clean() {
+func (b *IPTracker) Clean() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	total := len(b.recorders)
@@ -72,4 +64,14 @@ func (b *IPBucket) Clean() {
 		}
 	}
 	logrus.Infof("[Rate] clean %d recorders, remain %d", total-remain, remain)
+}
+
+func (b *IPTracker) Record() []Record {
+	var feedbacks []Record
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	for _, t := range b.recorders {
+		feedbacks = append(feedbacks, t.Record())
+	}
+	return feedbacks
 }

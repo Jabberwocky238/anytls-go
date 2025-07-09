@@ -54,6 +54,9 @@ type Session struct {
 
 	// server
 	onNewStream func(stream *Stream)
+
+	// addons
+	tracker *R.Recorder
 }
 
 func NewClientSession(conn net.Conn, _padding *atomic.TypedValue[*padding.PaddingFactory]) *Session {
@@ -73,6 +76,7 @@ func NewServerSession(conn net.Conn, onNewStream func(stream *Stream), _padding 
 		conn:        conn,
 		onNewStream: onNewStream,
 		padding:     _padding,
+		tracker:     R.Tracker.WithIP(conn.RemoteAddr()),
 	}
 	s.die = make(chan struct{})
 	s.streams = make(map[uint32]*Stream)
@@ -181,12 +185,8 @@ func (s *Session) recvLoop() error {
 
 	var receivedSettingsFromClient bool
 	var hdr rawHeader
-	// rate
-	recorder := R.Record.GetRecorder(s.conn.RemoteAddr())
 
 	for {
-		// rate
-		R.Limit.TryLimitRecv(recorder)
 		if s.IsClosed() {
 			return io.ErrClosedPipe
 		}
@@ -195,7 +195,7 @@ func (s *Session) recvLoop() error {
 			sid := hdr.StreamID()
 
 			// rate
-			recorder.RecvChan() <- uint64(hdr.Length())
+			s.tracker.RecvChan() <- uint64(hdr.Length())
 
 			switch hdr.Cmd() {
 			case cmdPSH:
@@ -391,12 +391,11 @@ func (s *Session) writeFrame(frame frame) (int, error) {
 	binary.BigEndian.PutUint16(buffer.Extend(2), uint16(dataLen))
 	buffer.Write(frame.data)
 
-	// rate
-	recorder := R.Record.GetRecorder(s.conn.RemoteAddr())
-	R.Limit.TryLimitSend(recorder)
+	// L.Limit.TryLimitSend(recorder)
 	n, err := s.writeConn(buffer.Bytes())
 	if err == nil {
-		recorder.SendChan() <- uint64(n)
+		// rate
+		s.tracker.SendChan() <- uint64(n)
 	}
 	buffer.Release()
 	if err != nil {

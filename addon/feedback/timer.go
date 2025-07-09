@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	R "anytls/addon/rate"
+
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
@@ -95,11 +97,17 @@ type ProxyRegisterRequest struct {
 	Country  string `json:"country" binding:"required"`
 }
 
+type ProxyFeedback struct {
+	IP    string `json:"ip" binding:"required"`
+	Usage uint64 `json:"usage" binding:"required"`
+}
+
 // ProxyHeartbeatRequest 代理心跳请求
 type ProxyHeartbeatRequest struct {
-	Host string `json:"host" binding:"required"`
-	Port int    `json:"port" binding:"required"`
-	Time int64  `json:"time"`
+	Host      string          `json:"host" binding:"required"`
+	Port      int             `json:"port" binding:"required"`
+	Time      int64           `json:"time"`
+	Feedbacks []ProxyFeedback `json:"feedbacks"`
 }
 
 // sendInitialRequest 发送初始请求
@@ -122,10 +130,19 @@ func (t *Timer) sendInitialRequest() error {
 
 // sendHeartbeat 发送心跳请求
 func (t *Timer) sendHeartbeat() error {
+	records := R.Tracker.Record()
+	feedbacks := make([]ProxyFeedback, len(records))
+	for i, record := range records {
+		feedbacks[i] = ProxyFeedback{
+			IP:    record.IP,
+			Usage: record.Usage.Rcvd + record.Usage.Sent,
+		}
+	}
 	req := ProxyHeartbeatRequest{
-		Host: t.host,
-		Port: t.port,
-		Time: time.Now().Unix(),
+		Host:      t.host,
+		Port:      t.port,
+		Time:      time.Now().Unix(),
+		Feedbacks: feedbacks,
 	}
 	jsonData, err := json.Marshal(req)
 	if err != nil {
