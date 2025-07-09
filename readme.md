@@ -19,12 +19,12 @@
 ```
 anytls-server-windows.exe -l 127.0.0.1:8443 -p 1111qqqqjjjj
 ./anytls-server-linux -l 0.0.0.0:3306 -p 1111qqqqjjjj
-ENV=prod ./anytls-server-linux -l 0.0.0.0:41668 -p 1111qqqqjjjjzq238_4
+ENV=prod ./anytls-server-linux -l 0.0.0.0:8080 -p 1111qqqqjjjjzq238_4
 ./anytls-server-linux-log -l 0.0.0.0:23877 -p 1111qqqqjjjjzq238_4
 ./anytls-redirect-linux -l 0.0.0.0:3306 -s 43.133.221.206:61555 -p 1111qqqqjjjjzq238_4
 ./anytls-redirect-linux -l 0.0.0.0:3306 -s 74.48.108.252:23877 -p 1111qqqqjjjjzq238_4
 
-./anytls-redirect-linux -l 0.0.0.0:23891 -s 74.48.108.252:23811 -p 1111qqqqjjjjzq238_1
+./anytls-redirect-linux -l 0.0.0.0:47073 -s 74.48.108.252:47073 -p zfEbVYzwh2YqZXWqgNftRVto
 ./anytls-redirect-linux -l 0.0.0.0:23892 -s 74.48.108.252:23822 -p 1111qqqqjjjjzq238_2
 ./anytls-redirect-linux -l 0.0.0.0:23893 -s 74.48.108.252:23833 -p 1111qqqqjjjjzq238_3
 ./anytls-redirect-linux -l 0.0.0.0:23894 -s 74.48.108.252:23844 -p 1111qqqqjjjjzq238_4

@@ -30,22 +30,19 @@ var VIP bool
 var (
 	RegisterRetryInterval = 15 * time.Second // 注册重试初始间隔
 	RegisterRetryMax      = 5                // 注册最大重试次数
-	HeartbeatInterval     = 5 * time.Second  // 心跳间隔
-	DefaultInterval       = 15 * time.Second // 默认心跳间隔
+	HeartbeatInterval     = 15 * time.Second // 心跳间隔
 	HTTPTimeout           = 10 * time.Second // HTTP超时时间
 )
 
 func init() {
-	if os.Getenv("ENV") == "prod" {
-		if err := godotenv.Load(".env"); err != nil {
-			fmt.Printf("无法加载.env文件: %v", err)
-		}
-	} else {
-		if err := godotenv.Load("../.env.dev"); err != nil {
-			fmt.Printf("无法加载.env文件: %v", err)
-		}
+	envPath := "../.env.dev"
+	if _, err := os.Stat(envPath); os.IsNotExist(err) {
+		envPath = ".env"
 	}
-	ServerURL = os.Getenv("API_BASE_URL") + "/proxy"
+	if err := godotenv.Load(envPath); err != nil {
+		fmt.Printf("无法加载.env文件: %v", err)
+	}
+	ServerURL = os.Getenv("API_BASE_URL")
 	VIP = os.Getenv("VIP") == "true"
 }
 

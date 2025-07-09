@@ -1,6 +1,7 @@
 package main
 
 import (
+	"anytls/proxy/feedback"
 	"anytls/util"
 	"context"
 	"crypto/sha256"
@@ -8,6 +9,7 @@ import (
 	"flag"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -53,10 +55,23 @@ func main() {
 	tlsConfigDownstream := &tls.Config{
 		InsecureSkipVerify: true,
 	}
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// feedback
+	_, port, err := net.SplitHostPort(*listen)
+	if err != nil {
+		logrus.Fatalln("split host port:", err)
+	}
+	portInt, err := strconv.Atoi(port)
+	if err != nil {
+		logrus.Fatalln("convert port:", err)
+	}
 
 	// 使用 myRedirector 封装
 	redirector := NewMyRedirector(ctx, *downstream, tlsConfigDownstream)
+
+	timer := feedback.NewTimer(*password, portInt, ctx, cancel)
+	timer.Start()
 
 	for {
 		c, err := listener.Accept()
@@ -65,5 +80,12 @@ func main() {
 		}
 		logrus.Infof("[Redirect] new client from %s", c.RemoteAddr())
 		go handleClientConn(ctx, c, redirector, tlsConfigServer)
+
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		default:
+		}
 	}
 }
